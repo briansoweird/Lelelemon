@@ -350,8 +350,12 @@ let currentCat = 'all';
 /* ── Sales log — persisted in localStorage so it survives refresh ── */
 let SALES = JSON.parse(localStorage.getItem('lelelemon_sales') || '[]');
 
-// Seed demo data if no real sales exist yet (so analytics isn't blank on first open)
-if (!SALES.length) {
+// Only seed demo data on the very first visit — never after a manual clear
+const _neverSeeded  = !localStorage.getItem('lelelemon_seeded');
+const _userCleared  =  localStorage.getItem('lelelemon_cleared') === '1';
+
+if (!SALES.length && _neverSeeded && !_userCleared) {
+  localStorage.setItem('lelelemon_seeded', '1');
   const now = new Date();
   const methods = ['cash', 'cash', 'gcash', 'card', 'cash', 'gcash', 'cash', 'card'];
   const demoOrders = [
@@ -1346,7 +1350,10 @@ function renderAnOrderLog(sales) {
 function clearSalesData() {
   if (!confirm('Clear ALL sales history? This cannot be undone.')) return;
   SALES = [];
-  try { localStorage.removeItem('lelelemon_sales'); } catch(e) {}
+  try {
+    localStorage.removeItem('lelelemon_sales');
+    localStorage.setItem('lelelemon_cleared', '1');  // prevent demo re-seed
+  } catch(e) {}
   renderAnalytics();
   showToast('🗑 Sales data cleared.');
 }
