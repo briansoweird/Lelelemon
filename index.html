@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- v20260303-0208 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Lelelemon">
+  <meta name="theme-color" content="#F5E642">
+  <title>Lelelemon POS 🍋</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // Register service worker
+    // Unregister any old service workers so Netlify always serves fresh files
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(r => r.unregister());
+      });
+    }
+    // PWA install prompt
+    let deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const b = document.getElementById('installBanner');
+      if (b) b.style.display = 'flex';
+    });
+    window.addEventListener('appinstalled', () => {
+      const b = document.getElementById('installBanner');
+      if (b) b.style.display = 'none';
+      deferredInstallPrompt = null;
+    });
+    function triggerInstall() {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.then(() => {
+        deferredInstallPrompt = null;
+        document.getElementById('installBanner').style.display = 'none';
+      });
+    }
+    function hideInstallBanner() {
+      document.getElementById('installBanner').style.display = 'none';
+    }
+  </script>
+</head>
+<body>
+
+<!-- ══════════ PWA INSTALL BANNER ══════════ -->
+<div id="installBanner" style="display:none; position:fixed; bottom:76px; left:50%; transform:translateX(-50%); z-index:8000; background:#1A1A00; color:#F5E642; border-radius:16px; padding:12px 16px; align-items:center; gap:12px; box-shadow:0 8px 32px rgba(0,0,0,0.35); width:calc(100% - 32px); max-width:400px;">
+  <span style="font-size:26px; flex-shrink:0;">🍋</span>
+  <div style="flex:1; min-width:0;">
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:13px;">Install Lelelemon POS</div>
+    <div style="font-size:11px; opacity:0.6; margin-top:2px;">Add to home screen for the full app experience</div>
+  </div>
+  <button onclick="triggerInstall()" style="background:#F5E642; color:#1A1A00; border:none; border-radius:8px; padding:8px 14px; font-family:'Syne',sans-serif; font-weight:800; font-size:12px; cursor:pointer; white-space:nowrap; flex-shrink:0;">Install</button>
+  <button onclick="hideInstallBanner()" style="background:none; border:none; color:rgba(245,230,66,0.5); font-size:20px; cursor:pointer; padding:2px; flex-shrink:0; line-height:1;">✕</button>
+</div>
+
+<!-- ══════════ LOGIN ══════════ -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">Lelele<span>mon</span> 🍋</div>
+    <div class="login-tagline">Admin Portal</div>
+    <div class="login-form">
+      <div class="input-group">
+        <label class="input-label">Username</label>
+        <div class="input-wrap">
+          <span class="input-icon">👤</span>
+          <input type="text" id="loginUser" class="login-input" placeholder="Enter username"
+                 autocomplete="username" autocapitalize="none" onkeydown="loginOnEnter(event)" />
+        </div>
+        <div class="input-error" id="userError"></div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Password</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input type="password" id="loginPass" class="login-input" placeholder="Enter password"
+                 autocomplete="current-password" onkeydown="loginOnEnter(event)" />
+          <button class="toggle-pass" onclick="togglePass()" id="toggleBtn" type="button">👁</button>
+        </div>
+        <div class="input-error" id="passError"></div>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <button class="login-btn" onclick="doLogin()" id="loginBtn" type="button">
+        <span id="loginBtnText">Sign In</span>
+      </button>
+    </div>
+    <div class="login-hint">
+      <code>admin</code> / <code>lelelemon123</code><br>
+      <code>manager</code> / <code>manager456</code>
+    </div>
+  </div>
+  <div class="login-bg-decor">
+    <span>🍋</span><span>🍋</span><span>🍋</span>
+    <span>🍋</span><span>🍋</span><span>🍋</span>
+    <span>🍋</span><span>🍋</span><span>🍋</span>
+  </div>
+</div>
+
+<!-- ══════════ POS APP ══════════ -->
+<div id="posApp">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">Lelele<span>mon</span> 🍋</div>
+    <div class="header-right">
+      <div class="clock" id="clock">--:--</div>
+      <div class="logged-in-user" id="loggedInUser"></div>
+      <div class="sync-indicator" id="syncIndicator" style="display:none">
+        <span class="sync-dot"></span><span id="syncLabel">Saved</span>
+      </div>
+      <button class="manager-mode-btn" id="managerModeBtn" onclick="openManagerPanel()" style="display:none">⚙ Manage</button>
+      <button class="logout-btn" onclick="doLogout()">⬡ Out</button>
+    </div>
+  </header>
+
+  <!-- Main POS layout -->
+  <div class="pos-layout" id="posLayout">
+
+    <!-- MENU PANEL -->
+    <div class="menu-panel">
+      <div class="category-bar" id="categoryBar"></div>
+      <div class="menu-grid" id="menuGrid"></div>
+    </div>
+
+    <!-- ORDER PANEL -->
+    <div class="order-panel">
+      <div class="order-header">
+        <div class="order-title">
+          Current Order
+          <span class="order-count" id="orderCount">0 items</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+          <div class="order-number" id="orderNum">Order #0001</div>
+          <button class="clear-btn" onclick="clearOrder()">✕ Clear</button>
+        </div>
+      </div>
+      <div class="order-items" id="orderItems">
+        <div class="empty-order">
+          <span class="empty-icon">🍋</span>
+          No items yet.<br>Tap a product to add!
+        </div>
+      </div>
+      <div class="order-totals">
+        <div class="total-row"><span>Subtotal</span><span id="subtotal">₱0.00</span></div>
+        <div class="total-row"><span>Tax (12%)</span><span id="tax">₱0.00</span></div>
+        <div class="total-row grand"><span>Total</span><span id="total">₱0.00</span></div>
+      </div>
+      <div class="payment-section">
+        <div class="payment-label">Payment Method</div>
+        <div class="payment-methods">
+          <button class="pay-btn selected" onclick="selectPay('cash',this)"><span class="pay-icon">💵</span>Cash</button>
+          <button class="pay-btn" onclick="selectPay('card',this)"><span class="pay-icon">💳</span>Card</button>
+          <button class="pay-btn" onclick="selectPay('gcash',this)"><span class="pay-icon">📱</span>GCash</button>
+        </div>
+        <button class="charge-btn" id="chargeBtn" onclick="charge()" disabled>Charge ₱0.00</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBILE BOTTOM NAV (hidden on tablet+) -->
+  <nav class="mobile-nav">
+    <button class="mobile-nav-btn active" id="navMenu" onclick="switchTab('menu')">
+      <span class="nav-icon">🍋</span>
+      Menu
+    </button>
+    <button class="mobile-nav-btn" id="navCart" onclick="switchTab('cart')">
+      <span class="nav-icon">🛒</span>
+      Cart
+      <span class="cart-badge" id="cartBadge">0</span>
+    </button>
+  </nav>
+
+  <!-- SUCCESS MODAL -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <span class="modal-icon">🎉</span>
+      <div class="modal-title">Payment Received!</div>
+      <div class="modal-sub" id="modalSub">Cash payment</div>
+      <div class="modal-amount" id="modalAmount">₱0.00</div>
+      <button class="modal-close" onclick="closeModal()">New Order 🍋</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<!-- ══════════ MANAGER PANEL ══════════ -->
+<div class="mgr-overlay" id="mgrOverlay">
+  <div class="mgr-panel">
+    <div class="mgr-sidebar">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <div class="mgr-logo">Lelele<span>mon</span> 🍋</div>
+          <div class="mgr-role-badge">⚙ Manager Mode</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <nav class="mgr-nav">
+          <button class="mgr-nav-btn active" onclick="mgrTab('items',this)">📋 Menu Items</button>
+          <button class="mgr-nav-btn" onclick="mgrTab('categories',this)">🏷 Categories</button>
+          <button class="mgr-nav-btn" onclick="openDbViewer()">🗄 View Database</button>
+          <button class="mgr-nav-btn" onclick="mgrTab('analytics',this)">📊 Analytics</button>
+        </nav>
+        <button class="mgr-close-btn" onclick="closeManagerPanel()">← Back to POS</button>
+      </div>
+    </div>
+    <div class="mgr-content">
+      <div id="mgrItems" class="mgr-tab active">
+        <div class="mgr-topbar">
+          <div><div class="mgr-section-title">Menu Items</div><div class="mgr-section-sub">Edit, add or remove menu items</div></div>
+          <button class="mgr-add-btn" onclick="openItemEditor(null)">+ Add Item</button>
+        </div>
+        <div class="mgr-filter-bar" id="mgrFilterBar"></div>
+        <div class="mgr-items-list" id="mgrItemsList"></div>
+      </div>
+      <div id="mgrCategories" class="mgr-tab">
+        <div class="mgr-topbar">
+          <div><div class="mgr-section-title">Categories</div><div class="mgr-section-sub">Manage product categories</div></div>
+          <button class="mgr-add-btn" onclick="openCatEditor(null)">+ Add</button>
+        </div>
+        <div class="mgr-cat-list" id="mgrCatList"></div>
+      </div>
+      <div id="mgrAnalytics" class="mgr-tab">
+        <div class="mgr-topbar">
+          <div>
+            <div class="mgr-section-title">Sales Analytics</div>
+            <div class="mgr-section-sub">Track daily revenue, top items, and payment trends</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="analyticsRange" class="ef-input ef-select" style="font-size:12px;padding:8px 32px 8px 10px;width:auto;" onchange="renderAnalytics()">
+              <option value="7">Last 7 days</option>
+              <option value="14">Last 14 days</option>
+              <option value="30" selected>Last 30 days</option>
+              <option value="all">All time</option>
+            </select>
+            <button class="mgr-add-btn" onclick="exportSalesExcel()">⬇ Export Excel</button>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="an-kpi-row" id="anKpiRow"></div>
+
+        <!-- Charts row -->
+        <div class="an-charts-row">
+          <div class="an-card an-card-wide">
+            <div class="an-card-title">Daily Revenue</div>
+            <div class="an-chart-wrap"><canvas id="chartRevenue"></canvas></div>
+          </div>
+          <div class="an-card">
+            <div class="an-card-title">Payment Methods</div>
+            <div class="an-chart-wrap an-chart-wrap-sm"><canvas id="chartPayment"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Top items table -->
+        <div class="an-card" style="margin-top:16px;">
+          <div class="an-card-title">Top Selling Items</div>
+          <div id="anTopItems"></div>
+        </div>
+
+        <!-- Sales log -->
+        <div class="an-card" style="margin-top:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div class="an-card-title" style="margin-bottom:0;">Order History</div>
+            <button class="ef-delete-btn" onclick="clearSalesData()" style="font-size:11px;padding:6px 10px;">🗑 Clear Data</button>
+          </div>
+          <div id="anOrderLog"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ITEM EDITOR ══════════ -->
+<div class="editor-overlay" id="editorOverlay">
+  <div class="editor-modal">
+    <div class="editor-header">
+      <div class="editor-title" id="editorTitle">Edit Item</div>
+      <button class="editor-x" onclick="closeItemEditor()" type="button">✕</button>
+    </div>
+    <div class="editor-body">
+      <div class="photo-upload-area" id="photoUploadArea" onclick="document.getElementById('photoFileInput').click()">
+        <div class="photo-preview-inner" id="photoPreviewInner">
+          <span id="photoPlaceholderIcon" style="font-size:36px;">📷</span>
+          <span id="photoPlaceholderText" style="font-size:12px;color:var(--muted);">Tap to upload photo</span>
+          <img id="photoImg" src="" alt="" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px;" />
+        </div>
+        <input type="file" id="photoFileInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)" />
+        <div class="photo-action-bar" id="photoActionBar" style="display:none">
+          <button class="photo-change-btn" onclick="event.stopPropagation();document.getElementById('photoFileInput').click()" type="button">📷 Change</button>
+          <button class="photo-remove-btn" onclick="event.stopPropagation();removePhoto()" type="button">✕ Remove</button>
+        </div>
+      </div>
+      <div class="editor-fields">
+        <div class="ef-group">
+          <label class="ef-label">Item Name *</label>
+          <input type="text" id="efName" class="ef-input" placeholder="e.g. Strawberry Lemonade" maxlength="40" />
+        </div>
+        <div class="ef-group">
+          <label class="ef-label">Emoji Icon</label>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="efEmoji" class="ef-input" placeholder="🍋" maxlength="4" style="width:70px;text-align:center;font-size:22px;" />
+            <div class="emoji-picker">
+              <button class="ep-btn" onclick="pickEmoji('🍋')" type="button">🍋</button><button class="ep-btn" onclick="pickEmoji('🍓')" type="button">🍓</button>
+              <button class="ep-btn" onclick="pickEmoji('🍇')" type="button">🍇</button><button class="ep-btn" onclick="pickEmoji('🥭')" type="button">🥭</button>
+              <button class="ep-btn" onclick="pickEmoji('🍑')" type="button">🍑</button><button class="ep-btn" onclick="pickEmoji('🫐')" type="button">🫐</button>
+              <button class="ep-btn" onclick="pickEmoji('🥝')" type="button">🥝</button><button class="ep-btn" onclick="pickEmoji('🌿')" type="button">🌿</button>
+              <button class="ep-btn" onclick="pickEmoji('🧊')" type="button">🧊</button><button class="ep-btn" onclick="pickEmoji('✨')" type="button">✨</button>
+              <button class="ep-btn" onclick="pickEmoji('🌸')" type="button">🌸</button><button class="ep-btn" onclick="pickEmoji('🍪')" type="button">🍪</button>
+              <button class="ep-btn" onclick="pickEmoji('🍰')" type="button">🍰</button><button class="ep-btn" onclick="pickEmoji('🧁')" type="button">🧁</button>
+              <button class="ep-btn" onclick="pickEmoji('🎁')" type="button">🎁</button><button class="ep-btn" onclick="pickEmoji('⭐')" type="button">⭐</button>
+              <button class="ep-btn" onclick="pickEmoji('🥤')" type="button">🥤</button><button class="ep-btn" onclick="pickEmoji('🫗')" type="button">🫗</button>
+            </div>
+          </div>
+        </div>
+        <div class="ef-group">
+          <label class="ef-label">Description</label>
+          <textarea id="efDesc" class="ef-input ef-textarea" placeholder="Short description..." maxlength="80" rows="2"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="ef-group">
+            <label class="ef-label">Price (₱) *</label>
+            <input type="number" id="efPrice" class="ef-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal" />
+          </div>
+          <div class="ef-group">
+            <label class="ef-label">Category *</label>
+            <select id="efCat" class="ef-input ef-select"></select>
+          </div>
+        </div>
+        <div class="ef-group ef-row">
+          <label class="ef-label">Available for sale</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="efAvailable" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="ef-error" id="efError"></div>
+      </div>
+    </div>
+    <div class="editor-footer">
+      <button class="ef-delete-btn" id="efDeleteBtn" onclick="confirmDeleteItem()" style="display:none" type="button">🗑 Delete</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="ef-cancel-btn" onclick="closeItemEditor()" type="button">Cancel</button>
+        <button class="ef-save-btn" onclick="saveItem()" type="button">💾 Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ CATEGORY EDITOR ══════════ -->
+<div class="cat-editor-overlay" id="catEditorOverlay">
+  <div class="cat-editor-modal">
+    <div class="editor-header">
+      <div class="editor-title" id="catEditorTitle">Add Category</div>
+      <button class="editor-x" onclick="closeCatEditor()" type="button">✕</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <div class="ef-group">
+        <label class="ef-label">Category Name *</label>
+        <input type="text" id="catName" class="ef-input" placeholder="e.g. Smoothies" maxlength="24" />
+      </div>
+      <div class="ef-group">
+        <label class="ef-label">Emoji</label>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="catEmoji" class="ef-input" placeholder="🥤" maxlength="4" style="width:70px;text-align:center;font-size:22px;" />
+          <div class="emoji-picker">
+            <button class="ep-btn" onclick="pickCatEmoji('🍋')" type="button">🍋</button><button class="ep-btn" onclick="pickCatEmoji('🥤')" type="button">🥤</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🧃')" type="button">🧃</button><button class="ep-btn" onclick="pickCatEmoji('🍵')" type="button">🍵</button>
+            <button class="ep-btn" onclick="pickCatEmoji('☕')" type="button">☕</button><button class="ep-btn" onclick="pickCatEmoji('🧊')" type="button">🧊</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🍪')" type="button">🍪</button><button class="ep-btn" onclick="pickCatEmoji('🎁')" type="button">🎁</button>
+            <button class="ep-btn" onclick="pickCatEmoji('⭐')" type="button">⭐</button><button class="ep-btn" onclick="pickCatEmoji('✨')" type="button">✨</button>
+          </div>
+        </div>
+      </div>
+      <div class="cat-default-warn" id="catDefaultWarn" style="display:none">
+        ⚠️ This is a default category. You can update the emoji but the ID stays the same.
+      </div>
+      <div class="ef-error" id="catError"></div>
+    </div>
+    <div class="editor-footer" style="padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));">
+      <button class="ef-cancel-btn" onclick="closeCatEditor()" type="button">Cancel</button>
+      <button class="ef-save-btn" onclick="saveCategory()" type="button" style="margin-left:auto;">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ DB VIEWER ══════════ -->
+<div class="dbv-overlay" id="dbvOverlay">
+  <div class="dbv-panel">
+    <div class="dbv-header">
+      <div>
+        <div class="dbv-title">🗄 Database Viewer</div>
+        <div class="dbv-sub">Live snapshot of all app data</div>
+      </div>
+      <button class="editor-x" onclick="closeDbViewer()" type="button">✕</button>
+    </div>
+    <div class="dbv-tabs">
+      <button class="dbv-tab active" onclick="dbvTab('categories',this)">🏷 Categories</button>
+      <button class="dbv-tab" onclick="dbvTab('menu',this)">📋 Menu Items</button>
+      <button class="dbv-tab" onclick="dbvTab('raw',this)">{ } Raw JSON</button>
+    </div>
+    <div class="dbv-body">
+      <div id="dbvCategories" class="dbv-section active"></div>
+      <div id="dbvMenu"       class="dbv-section"></div>
+      <div id="dbvRaw"        class="dbv-section"></div>
+    </div>
+    <div class="dbv-footer">
+      <button class="dbv-copy-btn" onclick="dbvCopyJson()">📋 Copy JSON</button>
+      <button class="dbv-refresh-btn" onclick="renderDbViewer()">↻ Refresh</button>
+      <span class="dbv-count" id="dbvCount"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ CONFIRM DELETE ══════════ -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-modal">
+    <div style="font-size:44px;margin-bottom:12px;" id="confirmIcon">🗑</div>
+    <div class="confirm-title" id="confirmTitle">Delete?</div>
+    <div class="confirm-sub" id="confirmSub">This cannot be undone.</div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;">
+      <button class="ef-cancel-btn" onclick="closeConfirm()" type="button">Cancel</button>
+      <button class="confirm-del-btn" id="confirmDelBtn" type="button">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
