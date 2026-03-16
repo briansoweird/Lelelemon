@@ -414,11 +414,10 @@ function renderCategoryBar() {
   bar.innerHTML =
     `<button class="cat-btn ${currentCat === 'all' ? 'active' : ''}" onclick="filterCat('all',this)">All Items</button>` +
     used.map(c => {
-      const displayName = c.label.replace(/^\S+\s/, '').trim() || capFirst(c.id);
       const style = c.color && currentCat === c.id
         ? `style="background:${c.color};border-color:${c.color};color:${isLightColor(c.color)?'#1A1A00':'#FFFEF0'}"`
         : (c.color ? `style="--cat-hover:${c.color}"` : '');
-      return `<button class="cat-btn ${currentCat === c.id ? 'active' : ''}" onclick="filterCat('${c.id}',this)" ${style}>${c.emoji} ${displayName}</button>`;
+      return `<button class="cat-btn ${currentCat === c.id ? 'active' : ''}" onclick="filterCat('${c.id}',this)" ${style}>${c.emoji} ${catName(c)}</button>`;
     }).join('');
 }
 
@@ -638,12 +637,17 @@ function mgrFilterCat(cat, btn) {
   renderMgrItems();
 }
 
+function catName(c) {
+  // Extract clean display name from label, fallback to capitalised id
+  return c.label.replace(/^\S+\s/, '').trim() || capFirst(c.id);
+}
+
 function renderMgrFilterBar() {
   const bar = document.getElementById('mgrFilterBar');
   bar.innerHTML =
     `<button class="mgr-filter-btn ${mgrCurrentCat === 'all' ? 'active' : ''}" onclick="mgrFilterCat('all',this)">All</button>` +
     CATEGORIES.map(c =>
-      `<button class="mgr-filter-btn ${mgrCurrentCat === c.id ? 'active' : ''}" onclick="mgrFilterCat('${c.id}',this)">${c.emoji} ${capFirst(c.id)}</button>`
+      `<button class="mgr-filter-btn ${mgrCurrentCat === c.id ? 'active' : ''}" onclick="mgrFilterCat('${c.id}',this)">${c.emoji} ${catName(c)}</button>`
     ).join('');
 }
 
@@ -666,7 +670,7 @@ function renderMgrItems() {
         ${thumb}
         <div class="mgr-item-info">
           <div class="mgr-item-name">${item.name}</div>
-          <div class="mgr-item-meta">${cat ? cat.emoji + ' ' + capFirst(cat.id) : item.cat} · ${item.desc || '—'}</div>
+          <div class="mgr-item-meta">${cat ? cat.emoji + ' ' + catName(cat) : item.cat} · ${item.desc || '—'}</div>
         </div>
         <span class="mgr-item-price">${fmt(item.price)}</span>
         <div class="mgr-item-actions">
@@ -682,7 +686,7 @@ function renderMgrCats() {
   const list = document.getElementById('mgrCatList');
   list.innerHTML = CATEGORIES.map(c => {
     const count       = MENU.filter(m => m.cat === c.id).length;
-    const displayName = c.label.replace(/^\S+\s/, '').trim() || capFirst(c.id);
+    const displayName = catName(c);
     const colorDot    = c.color
       ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c.color};border:1.5px solid rgba(0,0,0,0.1);margin-right:4px;vertical-align:middle;"></span>`
       : '';
@@ -726,7 +730,7 @@ function openItemEditor(id) {
   const delBtn    = document.getElementById('efDeleteBtn');
 
   document.getElementById('efCat').innerHTML = CATEGORIES.map(c =>
-    `<option value="${c.id}">${c.emoji} ${capFirst(c.id)}</option>`).join('');
+    `<option value="${c.id}">${c.emoji} ${catName(c)}</option>`).join('');
 
   if (id === null) {
     document.getElementById('editorTitle').textContent = 'Add New Item';
@@ -985,7 +989,7 @@ async function saveCategory() {
   // Refresh category dropdown in item editor too
   const efCat = document.getElementById('efCat');
   if (efCat) efCat.innerHTML = CATEGORIES.map(c =>
-    `<option value="${c.id}">${c.emoji} ${c.label.replace(/^\S+\s/,'').trim() || capFirst(c.id)}</option>`).join('');
+    `<option value="${c.id}">${c.emoji} ${catName(c)}</option>`).join('');
 }
 
 function confirmDeleteEditingCat() {
@@ -997,7 +1001,8 @@ function confirmDeleteCat(catId) {
   const cat   = CATEGORIES.find(c => c.id === catId);
   const count = MENU.filter(m => m.cat === catId).length;
   document.getElementById('confirmIcon').textContent  = cat?.emoji || '🏷';
-  document.getElementById('confirmTitle').textContent = `Delete "${capFirst(catId)}"?`;
+  const catObj = CATEGORIES.find(c => c.id === catId);
+  document.getElementById('confirmTitle').textContent = `Delete "${catObj ? catName(catObj) : capFirst(catId)}"?`;
   document.getElementById('confirmSub').textContent   = count > 0
     ? `⚠️ This will also delete ${count} item(s) in this category.`
     : 'This empty category will be removed.';
