@@ -413,9 +413,21 @@ function renderCategoryBar() {
   const used = CATEGORIES.filter(c => MENU.some(m => m.cat === c.id));
   bar.innerHTML =
     `<button class="cat-btn ${currentCat === 'all' ? 'active' : ''}" onclick="filterCat('all',this)">All Items</button>` +
-    used.map(c =>
-      `<button class="cat-btn ${currentCat === c.id ? 'active' : ''}" onclick="filterCat('${c.id}',this)">${c.emoji} ${capFirst(c.id)}</button>`
-    ).join('');
+    used.map(c => {
+      const displayName = c.label.replace(/^\S+\s/, '').trim() || capFirst(c.id);
+      const style = c.color && currentCat === c.id
+        ? `style="background:${c.color};border-color:${c.color};color:${isLightColor(c.color)?'#1A1A00':'#FFFEF0'}"`
+        : (c.color ? `style="--cat-hover:${c.color}"` : '');
+      return `<button class="cat-btn ${currentCat === c.id ? 'active' : ''}" onclick="filterCat('${c.id}',this)" ${style}>${c.emoji} ${displayName}</button>`;
+    }).join('');
+}
+
+function isLightColor(hex) {
+  const h = hex.replace('#','');
+  const r = parseInt(h.substr(0,2),16);
+  const g = parseInt(h.substr(2,2),16);
+  const b = parseInt(h.substr(4,2),16);
+  return (r*299 + g*587 + b*114) / 1000 > 140;
 }
 
 
@@ -669,15 +681,19 @@ function renderMgrItems() {
 function renderMgrCats() {
   const list = document.getElementById('mgrCatList');
   list.innerHTML = CATEGORIES.map(c => {
-    const count  = MENU.filter(m => m.cat === c.id).length;
+    const count       = MENU.filter(m => m.cat === c.id).length;
+    const displayName = c.label.replace(/^\S+\s/, '').trim() || capFirst(c.id);
+    const colorDot    = c.color
+      ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c.color};border:1.5px solid rgba(0,0,0,0.1);margin-right:4px;vertical-align:middle;"></span>`
+      : '';
     const delBtn = c.isDefault
       ? `<span class="default-cat-badge">default</span>`
       : `<button class="mgr-cat-del-btn" title="Delete" onclick="confirmDeleteCat('${c.id}')" type="button">🗑</button>`;
     return `
       <div class="mgr-cat-row">
-        <div class="mgr-cat-emoji">${c.emoji}</div>
+        <div class="mgr-cat-emoji" style="${c.color ? `background:${c.color};border-radius:10px;padding:4px;` : ''}">${c.emoji}</div>
         <div class="mgr-cat-info">
-          <div class="mgr-cat-name">${capFirst(c.id)}</div>
+          <div class="mgr-cat-name">${colorDot}${displayName}</div>
           <div class="mgr-cat-count">${count} item${count !== 1 ? 's' : ''}</div>
         </div>
         <div class="mgr-cat-actions">
@@ -843,60 +859,138 @@ function pickEmoji(e)  { document.getElementById('efEmoji').value = e; }
 /* ══════════════════════════════════════════════════════════════
    CATEGORY EDITOR
    ══════════════════════════════════════════════════════════════ */
-let editingCatId = null;
+/* ══════════════════════════════════════════════════════════════
+   CATEGORY EDITOR  —  full featured
+   ══════════════════════════════════════════════════════════════ */
+let editingCatId  = null;
+let catColor      = '#F5E642';   // currently selected color
+
+const CAT_COLORS = [
+  '#F5E642','#FCD34D','#FB923C','#F87171','#F472B6',
+  '#C084FC','#818CF8','#60A5FA','#34D399','#4ADE80',
+  '#A3E635','#E2E8F0','#1A1A00','#7A7A40',
+];
+
+function buildCatColorGrid() {
+  const grid = document.getElementById('catColorGrid');
+  if (!grid) return;
+  grid.innerHTML = CAT_COLORS.map(col => `
+    <div class="cat-color-swatch ${col === catColor ? 'selected' : ''}"
+         style="background:${col};"
+         onclick="selectCatColor('${col}',this)"
+         title="${col}"></div>`).join('');
+}
+
+function selectCatColor(col, el) {
+  catColor = col;
+  document.querySelectorAll('.cat-color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  updateCatPreview();
+}
+
+function updateCatPreview() {
+  const name  = document.getElementById('catName')?.value.trim()  || 'New Category';
+  const emoji = document.getElementById('catEmoji')?.value.trim() || '📦';
+  const badge = document.getElementById('catPreviewBadge');
+  if (!badge) return;
+  document.getElementById('catPreviewEmoji').textContent = emoji;
+  document.getElementById('catPreviewName').textContent  = name;
+  // Pick text color based on brightness
+  const hex = catColor.replace('#','');
+  const r = parseInt(hex.substr(0,2),16);
+  const g = parseInt(hex.substr(2,2),16);
+  const b = parseInt(hex.substr(4,2),16);
+  const bright = (r*299 + g*587 + b*114) / 1000;
+  badge.style.background  = catColor;
+  badge.style.color       = bright > 140 ? '#1A1A00' : '#FFFEF0';
+  badge.style.borderColor = bright > 140 ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.2)';
+}
 
 function openCatEditor(catId = null) {
   editingCatId = catId;
-  const warn   = document.getElementById('catDefaultWarn');
+  const delBtn = document.getElementById('catDeleteBtn');
 
   if (catId === null) {
+    // ── ADD new category ──
     document.getElementById('catEditorTitle').textContent = 'Add Category';
     document.getElementById('catName').value  = '';
-    document.getElementById('catEmoji').value = '';
-    warn.style.display = 'none';
+    document.getElementById('catEmoji').value = '📦';
+    catColor = '#F5E642';
+    if (delBtn) delBtn.style.display = 'none';
   } else {
+    // ── EDIT existing category ──
     const cat = CATEGORIES.find(c => c.id === catId);
     document.getElementById('catEditorTitle').textContent = 'Edit Category';
-    document.getElementById('catName').value  = capFirst(catId);
+    // Use the real display name (strip emoji from label if present)
+    const displayName = cat.label.replace(/^\S+\s/, '').trim() || capFirst(catId);
+    document.getElementById('catName').value  = displayName;
     document.getElementById('catEmoji').value = cat.emoji;
-    warn.style.display = cat.isDefault ? 'block' : 'none';
+    catColor = cat.color || '#F5E642';
+    if (delBtn) delBtn.style.display = cat.isDefault ? 'none' : 'inline-flex';
   }
+
   document.getElementById('catError').textContent = '';
+  buildCatColorGrid();
+  updateCatPreview();
   document.getElementById('catEditorOverlay').classList.add('show');
+  // Focus name input
+  setTimeout(() => document.getElementById('catName')?.focus(), 100);
 }
 
-function closeCatEditor() { document.getElementById('catEditorOverlay').classList.remove('show'); }
-function pickCatEmoji(e)  { document.getElementById('catEmoji').value = e; }
+function closeCatEditor() {
+  document.getElementById('catEditorOverlay').classList.remove('show');
+}
+
+function pickCatEmoji(e) {
+  document.getElementById('catEmoji').value = e;
+  updateCatPreview();
+}
 
 async function saveCategory() {
   const name  = document.getElementById('catName').value.trim();
   const emoji = document.getElementById('catEmoji').value.trim() || '📦';
   const errEl = document.getElementById('catError');
+
   if (!name) { errEl.textContent = 'Category name is required.'; return; }
   errEl.textContent = '';
 
   if (editingCatId === null) {
-    const id = name.toLowerCase().replace(/\s+/g, '_');
-    if (CATEGORIES.find(c => c.id === id)) { errEl.textContent = 'That category already exists.'; return; }
-    const newCat = { id, label: `${emoji} ${name}`, emoji, isDefault: false, _isNew: true };
+    // ── ADD ──
+    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g,'');
+    if (CATEGORIES.find(c => c.id === id)) {
+      errEl.textContent = 'A category with that name already exists.'; return;
+    }
+    const newCat = {
+      id, label: `${emoji} ${name}`, emoji,
+      color: catColor, isDefault: false, _isNew: true,
+    };
     await syncOp(() => db.saveCategory(newCat));
     delete newCat._isNew;
     CATEGORIES.push(newCat);
-    showToast(`${emoji} Category "${name}" added!`);
+    showToast(`${emoji} "${name}" added!`);
   } else {
-    const cat = CATEGORIES.find(c => c.id === editingCatId);
-    cat.emoji = emoji;
-    cat.label = `${emoji} ${name}`;
+    // ── EDIT — update everything including label ──
+    const cat   = CATEGORIES.find(c => c.id === editingCatId);
+    cat.emoji   = emoji;
+    cat.label   = `${emoji} ${name}`;
+    cat.color   = catColor;
     await syncOp(() => db.saveCategory(cat));
-    showToast('✅ Category updated!');
+    showToast(`✅ "${name}" updated!`);
   }
 
   closeCatEditor();
   renderMgrFilterBar();
   renderMgrCats();
   renderCategoryBar();
-  document.getElementById('efCat').innerHTML = CATEGORIES.map(c =>
-    `<option value="${c.id}">${c.emoji} ${capFirst(c.id)}</option>`).join('');
+  // Refresh category dropdown in item editor too
+  const efCat = document.getElementById('efCat');
+  if (efCat) efCat.innerHTML = CATEGORIES.map(c =>
+    `<option value="${c.id}">${c.emoji} ${c.label.replace(/^\S+\s/,'').trim() || capFirst(c.id)}</option>`).join('');
+}
+
+function confirmDeleteEditingCat() {
+  closeCatEditor();
+  confirmDeleteCat(editingCatId);
 }
 
 function confirmDeleteCat(catId) {
@@ -1355,7 +1449,7 @@ function exportSalesExcel() {
   // ── Download ──────────────────────────────────────────────
   const range   = document.getElementById('analyticsRange')?.value || '30';
   const rangeLabel = range === 'all' ? 'All-Time' : `Last-${range}-Days`;
-  const today   = new Date().toISOString().slice(0, 10);ind
+  const today   = new Date().toISOString().slice(0, 10);
   const filename = `Lelelemon-Sales-${rangeLabel}-${today}.xlsx`;
 
   XLSX.writeFile(wb, filename);

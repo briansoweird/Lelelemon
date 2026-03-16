@@ -362,32 +362,68 @@
       <div class="editor-title" id="catEditorTitle">Add Category</div>
       <button class="editor-x" onclick="closeCatEditor()" type="button">✕</button>
     </div>
-    <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+    <div style="padding:20px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;max-height:70dvh;">
+
+      <!-- Preview -->
+      <div class="cat-preview" id="catPreview">
+        <div class="cat-preview-badge" id="catPreviewBadge">
+          <span id="catPreviewEmoji">📦</span>
+          <span id="catPreviewName">New Category</span>
+        </div>
+      </div>
+
+      <!-- Name -->
       <div class="ef-group">
         <label class="ef-label">Category Name *</label>
-        <input type="text" id="catName" class="ef-input" placeholder="e.g. Smoothies" maxlength="24" />
+        <input type="text" id="catName" class="ef-input" placeholder="e.g. Smoothies"
+               maxlength="24" oninput="updateCatPreview()" />
       </div>
+
+      <!-- Emoji -->
       <div class="ef-group">
-        <label class="ef-label">Emoji</label>
+        <label class="ef-label">Emoji Icon</label>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input type="text" id="catEmoji" class="ef-input" placeholder="🥤" maxlength="4" style="width:70px;text-align:center;font-size:22px;" />
+          <input type="text" id="catEmoji" class="ef-input" placeholder="🥤" maxlength="4"
+                 style="width:70px;text-align:center;font-size:22px;"
+                 oninput="updateCatPreview()" />
           <div class="emoji-picker">
-            <button class="ep-btn" onclick="pickCatEmoji('🍋')" type="button">🍋</button><button class="ep-btn" onclick="pickCatEmoji('🥤')" type="button">🥤</button>
-            <button class="ep-btn" onclick="pickCatEmoji('🧃')" type="button">🧃</button><button class="ep-btn" onclick="pickCatEmoji('🍵')" type="button">🍵</button>
-            <button class="ep-btn" onclick="pickCatEmoji('☕')" type="button">☕</button><button class="ep-btn" onclick="pickCatEmoji('🧊')" type="button">🧊</button>
-            <button class="ep-btn" onclick="pickCatEmoji('🍪')" type="button">🍪</button><button class="ep-btn" onclick="pickCatEmoji('🎁')" type="button">🎁</button>
-            <button class="ep-btn" onclick="pickCatEmoji('⭐')" type="button">⭐</button><button class="ep-btn" onclick="pickCatEmoji('✨')" type="button">✨</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🍋')" type="button">🍋</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🥤')" type="button">🥤</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🧃')" type="button">🧃</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🍵')" type="button">🍵</button>
+            <button class="ep-btn" onclick="pickCatEmoji('☕')" type="button">☕</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🧊')" type="button">🧊</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🍓')" type="button">🍓</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🥭')" type="button">🥭</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🍇')" type="button">🍇</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🍑')" type="button">🍑</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🧁')" type="button">🧁</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🍰')" type="button">🍰</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🍪')" type="button">🍪</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🎁')" type="button">🎁</button>
+            <button class="ep-btn" onclick="pickCatEmoji('⭐')" type="button">⭐</button>
+            <button class="ep-btn" onclick="pickCatEmoji('✨')" type="button">✨</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🌿')" type="button">🌿</button>
+            <button class="ep-btn" onclick="pickCatEmoji('🌸')" type="button">🌸</button>
           </div>
         </div>
       </div>
-      <div class="cat-default-warn" id="catDefaultWarn" style="display:none">
-        ⚠️ This is a default category. You can update the emoji but the ID stays the same.
+
+      <!-- Color -->
+      <div class="ef-group">
+        <label class="ef-label">Button Color</label>
+        <div class="cat-color-grid" id="catColorGrid"></div>
       </div>
+
       <div class="ef-error" id="catError"></div>
     </div>
+
     <div class="editor-footer" style="padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));">
-      <button class="ef-cancel-btn" onclick="closeCatEditor()" type="button">Cancel</button>
-      <button class="ef-save-btn" onclick="saveCategory()" type="button" style="margin-left:auto;">💾 Save</button>
+      <button class="ef-delete-btn" id="catDeleteBtn" onclick="confirmDeleteEditingCat()" style="display:none" type="button">🗑 Delete</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="ef-cancel-btn" onclick="closeCatEditor()" type="button">Cancel</button>
+        <button class="ef-save-btn" onclick="saveCategory()" type="button">💾 Save</button>
+      </div>
     </div>
   </div>
 </div>

@@ -512,9 +512,30 @@ header {
 /* Category editor */
 .cat-editor-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:700; align-items:flex-end; justify-content:center; }
 .cat-editor-overlay.show { display:flex; }
-.cat-editor-modal { background:var(--bg); border:2px solid var(--border); border-radius:20px 20px 0 0; width:100%; max-width:440px; overflow:hidden; box-shadow:0 -8px 40px rgba(0,0,0,0.2); animation:sheetUp 0.3s cubic-bezier(0.4,0,0.2,1); }
+.cat-editor-modal { background:var(--bg); border:2px solid var(--border); border-radius:20px 20px 0 0; width:100%; max-width:480px; display:flex; flex-direction:column; max-height:92dvh; box-shadow:0 -8px 40px rgba(0,0,0,0.2); animation:sheetUp 0.3s cubic-bezier(0.4,0,0.2,1); }
 @media (min-width:500px) { .cat-editor-overlay { align-items:center; } .cat-editor-modal { border-radius:20px; animation:popIn 0.2s; } }
-.cat-default-warn { font-size:11px; color:#7a5c00; background:#fff8d6; border:1px solid #e8d060; border-radius:8px; padding:10px 12px; line-height:1.5; }
+
+/* Live preview badge */
+.cat-preview { padding:4px 0 8px; display:flex; justify-content:center; }
+.cat-preview-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:10px 22px; border-radius:24px;
+  font-family:'Syne',sans-serif; font-weight:700; font-size:15px;
+  border:2.5px solid rgba(0,0,0,0.12);
+  background:var(--lemon); color:var(--text);
+  transition:all 0.2s; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+}
+.cat-preview-badge span:first-child { font-size:22px; line-height:1; }
+
+/* Color grid */
+.cat-color-grid { display:flex; flex-wrap:wrap; gap:8px; }
+.cat-color-swatch {
+  width:36px; height:36px; border-radius:50%; cursor:pointer;
+  border:3px solid transparent; transition:all 0.15s;
+  box-shadow:0 1px 4px rgba(0,0,0,0.15);
+}
+.cat-color-swatch:hover { transform:scale(1.15); }
+.cat-color-swatch.selected { border-color:var(--text); transform:scale(1.1); }
 
 /* Confirm delete */
 .confirm-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:800; align-items:center; justify-content:center; padding:20px; }
