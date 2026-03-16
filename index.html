@@ -92,10 +92,8 @@
         <span id="loginBtnText">Sign In</span>
       </button>
     </div>
-    <div class="login-hint">
-      <code>admin</code> / <code>lelelemon123</code><br>
-      <code>manager</code> / <code>manager456</code>
-    </div>
+    <!-- Account quick-select tiles (built dynamically) -->
+    <div class="login-accounts" id="loginAccounts"></div>
   </div>
   <div class="login-bg-decor">
     <span>🍋</span><span>🍋</span><span>🍋</span>
@@ -207,6 +205,7 @@
           <button class="mgr-nav-btn active" onclick="mgrTab('items',this)">📋 Menu Items</button>
           <button class="mgr-nav-btn" onclick="mgrTab('categories',this)">🏷 Categories</button>
           <button class="mgr-nav-btn" onclick="openDbViewer()">🗄 View Database</button>
+          <button class="mgr-nav-btn" id="accountsMgrBtn" onclick="mgrTab('accounts',this)" style="display:none">👥 Accounts</button>
           <button class="mgr-nav-btn" onclick="mgrTab('analytics',this)">📊 Analytics</button>
         </nav>
         <button class="mgr-close-btn" onclick="closeManagerPanel()">← Back to POS</button>
@@ -274,6 +273,68 @@
           </div>
           <div id="anOrderLog"></div>
         </div>
+      </div>
+
+      <!-- ACCOUNTS TAB -->
+      <div id="mgrAccounts" class="mgr-tab">
+        <div class="mgr-topbar">
+          <div>
+            <div class="mgr-section-title">Staff Accounts</div>
+            <div class="mgr-section-sub">Create and manage login accounts</div>
+          </div>
+          <button class="mgr-add-btn" onclick="openAccountEditor(null)">+ Add Account</button>
+        </div>
+        <div id="accountsList"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ACCOUNT EDITOR ══════════ -->
+<div class="cat-editor-overlay" id="accountEditorOverlay">
+  <div class="cat-editor-modal">
+    <div class="editor-header">
+      <div class="editor-title" id="accountEditorTitle">Add Account</div>
+      <button class="editor-x" onclick="closeAccountEditor()" type="button">✕</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:16px;">
+      <div class="ef-group">
+        <label class="ef-label">Full Name *</label>
+        <input type="text" id="acctName" class="ef-input" placeholder="e.g. Maria Santos" maxlength="32" />
+      </div>
+      <div class="ef-group">
+        <label class="ef-label">Username *</label>
+        <input type="text" id="acctUser" class="ef-input" placeholder="e.g. maria" maxlength="20"
+               autocapitalize="none" autocorrect="off" />
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Lowercase letters, numbers, underscore only</div>
+      </div>
+      <div class="ef-group">
+        <label class="ef-label">Password *</label>
+        <div class="input-wrap">
+          <input type="password" id="acctPass" class="ef-input" placeholder="Min 6 characters"
+                 style="padding-left:12px" />
+          <button class="toggle-pass" onclick="toggleAcctPass()" id="acctToggleBtn" type="button">👁</button>
+        </div>
+      </div>
+      <div class="ef-group">
+        <label class="ef-label">Role</label>
+        <select id="acctRole" class="ef-input ef-select">
+          <option value="cashier">🧾 Cashier — POS only</option>
+          <option value="manager">⚙️ Manager — POS + Menu editing</option>
+        </select>
+      </div>
+      <div class="ef-group">
+        <label class="ef-label">Avatar Color</label>
+        <div class="cat-color-grid" id="acctColorGrid"></div>
+      </div>
+      <div class="ef-error" id="acctError"></div>
+    </div>
+    <div class="editor-footer" style="padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));">
+      <button class="ef-delete-btn" id="acctDeleteBtn" onclick="deleteAccount()" style="display:none" type="button">🗑 Remove</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="ef-cancel-btn" onclick="closeAccountEditor()" type="button">Cancel</button>
+        <button class="ef-save-btn" onclick="saveAccount()" type="button">💾 Save</button>
       </div>
     </div>
   </div>

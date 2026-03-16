@@ -161,8 +161,28 @@ const db = {
 /* ══════════════════════════════════════════════════════════════
    AUTH  (local credentials — swap for Supabase Auth if needed)
    ══════════════════════════════════════════════════════════════ */
-const CREDENTIALS = { admin: 'lelelemon123', manager: 'manager456' };
-let currentUser = null;
+/* ── ACCOUNTS — stored in localStorage, seeded with defaults ── */
+const PROTECTED_USERS = ['admin'];  // cannot be deleted
+
+function loadAccounts() {
+  const stored = localStorage.getItem('lelelemon_accounts');
+  if (stored) return JSON.parse(stored);
+  // Default accounts on first run
+  const defaults = [
+    { username:'admin',   password:'lelelemon123', name:'Admin',   role:'admin',   color:'#1A1A00' },
+    { username:'manager', password:'manager456',   name:'Manager', role:'manager', color:'#7C3AED' },
+  ];
+  localStorage.setItem('lelelemon_accounts', JSON.stringify(defaults));
+  return defaults;
+}
+
+function saveAccounts(accounts) {
+  localStorage.setItem('lelelemon_accounts', JSON.stringify(accounts));
+}
+
+let ACCOUNTS    = loadAccounts();
+let currentUser = null;   // username string
+let currentAcct = null;   // full account object
 
 function doLogin() {
   const userEl  = document.getElementById('loginUser');
@@ -191,12 +211,14 @@ function doLogin() {
     btn.classList.remove('loading');
     btnText.textContent = 'Sign In';
 
-    if (CREDENTIALS[user] && CREDENTIALS[user] === pass) {
+    const acct = ACCOUNTS.find(a => a.username === user && a.password === pass);
+    if (acct) {
       currentUser = user;
+      currentAcct = acct;
       document.getElementById('loginOverlay').style.display    = 'none';
       document.getElementById('posApp').style.display          = 'flex';
-      document.getElementById('loggedInUser').textContent      = '👤 ' + user;
-      document.getElementById('managerModeBtn').style.display  = user === 'manager' ? 'inline-block' : 'none';
+      document.getElementById('loggedInUser').textContent      = '👤 ' + (acct.name || user);
+      document.getElementById('managerModeBtn').style.display  = (acct.role === 'manager' || acct.role === 'admin') ? 'inline-block' : 'none';
       userEl.value = '';
       passEl.value = '';
 
@@ -239,10 +261,39 @@ function doLogin() {
 
 function doLogout() {
   currentUser = null;
+  currentAcct = null;
   document.getElementById('posApp').style.display       = 'none';
   document.getElementById('loginOverlay').style.display = 'flex';
   closeManagerPanel();
   clearOrder();
+  renderLoginTiles();
+}
+
+function renderLoginTiles() {
+  const el = document.getElementById('loginAccounts');
+  if (!el) return;
+  if (!ACCOUNTS.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="login-accounts-label">Quick Sign In</div>
+    <div class="login-account-tiles">
+      ${ACCOUNTS.map(a => {
+        const initials = (a.name || a.username).split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+        const roleLabel = a.role === 'admin' ? 'Admin' : a.role === 'manager' ? 'Manager' : 'Cashier';
+        return `<div class="login-acct-tile" onclick="quickLogin('${a.username}')">
+          <div class="login-acct-avatar" style="background:${a.color||'#1A1A00'}">${initials}</div>
+          <div class="login-acct-info">
+            <div class="login-acct-name">${a.name || a.username}</div>
+            <div class="login-acct-role">${roleLabel}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function quickLogin(username) {
+  document.getElementById('loginUser').value = username;
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginPass').focus();
 }
 
 function togglePass() {
@@ -579,13 +630,14 @@ function closeModal() {
     const sub   = keys.reduce((s, id) => s + cart[id].price * cart[id].qty, 0);
     const total = sub * 1.12;
     const sale  = {
-      id:      orderNum,
-      date:    new Date().toISOString(),
-      method:  payMethod,
-      total:   parseFloat(total.toFixed(2)),
-      subtotal: parseFloat(sub.toFixed(2)),
-      tax:     parseFloat((total - sub).toFixed(2)),
-      items:   keys.map(id => ({
+      id:        orderNum,
+      date:      new Date().toISOString(),
+      method:    payMethod,
+      cashier:   currentAcct?.name || currentUser || 'Unknown',
+      total:     parseFloat(total.toFixed(2)),
+      subtotal:  parseFloat(sub.toFixed(2)),
+      tax:       parseFloat((total - sub).toFixed(2)),
+      items:     keys.map(id => ({
         id:    cart[id].id,
         name:  cart[id].name,
         emoji: cart[id].emoji,
@@ -617,6 +669,8 @@ function openManagerPanel() {
   renderMgrFilterBar();
   renderMgrItems();
   renderMgrCats();
+  const acctBtn = document.getElementById('accountsMgrBtn');
+  if (acctBtn) acctBtn.style.display = (currentAcct?.role === 'admin') ? '' : 'none';
   document.getElementById('mgrOverlay').classList.add('show');
 }
 
@@ -632,6 +686,7 @@ function mgrTab(tabId, btn) {
   document.getElementById('mgr' + capFirst(tabId)).classList.add('active');
   btn.classList.add('active');
   if (tabId === 'analytics') renderAnalytics();
+  if (tabId === 'accounts')  renderAccountsList();
 }
 
 function mgrFilterCat(cat, btn) {
@@ -1139,10 +1194,156 @@ function dbvCopyJson() {
 
 
 /* ══════════════════════════════════════════════════════════════
+   ACCOUNTS MANAGER
+   ══════════════════════════════════════════════════════════════ */
+let editingAcctUser = null;
+let acctColor       = '#1A1A00';
+
+const ACCT_COLORS = [
+  '#1A1A00','#7C3AED','#2563EB','#059669','#DC2626',
+  '#D97706','#DB2777','#0891B2','#65A30D','#7A7A40',
+];
+
+function renderAccountsList() {
+  const el = document.getElementById('accountsList');
+  if (!el) return;
+  ACCOUNTS = loadAccounts();
+  el.innerHTML = ACCOUNTS.map(a => {
+    const initials  = (a.name || a.username).split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const roleLabel = a.role === 'admin' ? 'Admin' : a.role === 'manager' ? 'Manager' : 'Cashier';
+    const isProtected = PROTECTED_USERS.includes(a.username);
+    return `
+      <div class="acct-row">
+        <div class="acct-avatar" style="background:${a.color||'#1A1A00'}">${initials}</div>
+        <div class="acct-info">
+          <div class="acct-name">${a.name || a.username}</div>
+          <div class="acct-meta">
+            @${a.username} &nbsp;·&nbsp;
+            <span class="acct-role-badge ${a.role}">${roleLabel}</span>
+          </div>
+        </div>
+        <div>
+          ${isProtected
+            ? '<span class="acct-protected">protected</span>'
+            : `<button class="mgr-edit-btn" onclick="openAccountEditor('${a.username}')" type="button">✏ Edit</button>`}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function buildAcctColorGrid(selected) {
+  const grid = document.getElementById('acctColorGrid');
+  if (!grid) return;
+  grid.innerHTML = ACCT_COLORS.map(col => `
+    <div class="cat-color-swatch ${col === selected ? 'selected' : ''}"
+         style="background:${col};"
+         onclick="selectAcctColor('${col}',this)"></div>`).join('');
+}
+
+function selectAcctColor(col, el) {
+  acctColor = col;
+  document.querySelectorAll('#acctColorGrid .cat-color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function openAccountEditor(username) {
+  editingAcctUser = username;
+  const delBtn    = document.getElementById('acctDeleteBtn');
+
+  if (username === null) {
+    document.getElementById('accountEditorTitle').textContent = 'Add Account';
+    document.getElementById('acctName').value  = '';
+    document.getElementById('acctUser').value  = '';
+    document.getElementById('acctPass').value  = '';
+    document.getElementById('acctRole').value  = 'cashier';
+    document.getElementById('acctUser').disabled = false;
+    acctColor = '#1A1A00';
+    if (delBtn) delBtn.style.display = 'none';
+  } else {
+    const acct = ACCOUNTS.find(a => a.username === username);
+    document.getElementById('accountEditorTitle').textContent = 'Edit Account';
+    document.getElementById('acctName').value  = acct.name || '';
+    document.getElementById('acctUser').value  = acct.username;
+    document.getElementById('acctPass').value  = acct.password;
+    document.getElementById('acctRole').value  = acct.role;
+    document.getElementById('acctUser').disabled = true; // can't change username
+    acctColor = acct.color || '#1A1A00';
+    if (delBtn) delBtn.style.display = PROTECTED_USERS.includes(username) ? 'none' : 'inline-flex';
+  }
+
+  document.getElementById('acctError').textContent = '';
+  buildAcctColorGrid(acctColor);
+  document.getElementById('accountEditorOverlay').classList.add('show');
+  setTimeout(() => document.getElementById('acctName').focus(), 100);
+}
+
+function closeAccountEditor() {
+  document.getElementById('accountEditorOverlay').classList.remove('show');
+}
+
+function toggleAcctPass() {
+  const p = document.getElementById('acctPass');
+  const b = document.getElementById('acctToggleBtn');
+  p.type = p.type === 'password' ? 'text' : 'password';
+  b.textContent = p.type === 'password' ? '👁' : '🙈';
+}
+
+function saveAccount() {
+  const name  = document.getElementById('acctName').value.trim();
+  const uname = document.getElementById('acctUser').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const pass  = document.getElementById('acctPass').value.trim();
+  const role  = document.getElementById('acctRole').value;
+  const errEl = document.getElementById('acctError');
+
+  if (!name)          { errEl.textContent = 'Full name is required.';          return; }
+  if (!uname)         { errEl.textContent = 'Username is required.';           return; }
+  if (pass.length < 6){ errEl.textContent = 'Password must be 6+ characters.'; return; }
+  errEl.textContent = '';
+
+  ACCOUNTS = loadAccounts();
+
+  if (editingAcctUser === null) {
+    // ADD
+    if (ACCOUNTS.find(a => a.username === uname)) {
+      errEl.textContent = 'That username is already taken.'; return;
+    }
+    ACCOUNTS.push({ username: uname, password: pass, name, role, color: acctColor });
+    showToast(`👤 "${name}" added!`);
+  } else {
+    // EDIT
+    const acct = ACCOUNTS.find(a => a.username === editingAcctUser);
+    acct.name     = name;
+    acct.password = pass;
+    acct.role     = role;
+    acct.color    = acctColor;
+    showToast(`✅ "${name}" updated!`);
+  }
+
+  saveAccounts(ACCOUNTS);
+  closeAccountEditor();
+  renderAccountsList();
+  renderLoginTiles();
+}
+
+function deleteAccount() {
+  const acct = ACCOUNTS.find(a => a.username === editingAcctUser);
+  if (!acct || PROTECTED_USERS.includes(acct.username)) return;
+  if (!confirm(`Remove account "${acct.name || acct.username}"? This cannot be undone.`)) return;
+  ACCOUNTS = ACCOUNTS.filter(a => a.username !== editingAcctUser);
+  saveAccounts(ACCOUNTS);
+  closeAccountEditor();
+  renderAccountsList();
+  renderLoginTiles();
+  showToast(`🗑 Account removed.`);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
    INIT
    ══════════════════════════════════════════════════════════════ */
 setInterval(updateClock, 1000);
 updateClock();
+renderLoginTiles();
 
 /* ══════════════════════════════════════════════════════════════
    ANALYTICS
@@ -1333,11 +1534,12 @@ function renderAnOrderLog(sales) {
     const d    = new Date(s.date);
     const time = d.toLocaleString('en-PH', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
     const itemList = s.items.map(i => `${i.emoji} ${i.name} ×${i.qty}`).join(', ');
+    const cashierTag = s.cashier ? `<span style="background:var(--border);border-radius:6px;padding:1px 6px;font-size:10px;margin-left:4px;">👤 ${s.cashier}</span>` : '';
     return `
       <div class="an-log-row">
         <div class="an-log-num">#${String(s.id).padStart(4,'0')}</div>
         <div>
-          <div style="font-size:11px;color:var(--muted);">${time}</div>
+          <div style="font-size:11px;color:var(--muted);">${time}${cashierTag}</div>
           <div class="an-log-items">${itemList}</div>
         </div>
         <div class="an-log-pay">${icons[s.method] || '💵'}</div>
@@ -1397,13 +1599,14 @@ function exportSalesExcel() {
 
   // ── Sheet 2: All Orders ───────────────────────────────────
   const orderRows = [
-    ['Order #', 'Date', 'Time', 'Payment', 'Items', 'Subtotal (₱)', 'Tax (₱)', 'Total (₱)'],
+    ['Order #', 'Date', 'Time', 'Cashier', 'Payment', 'Items', 'Subtotal (₱)', 'Tax (₱)', 'Total (₱)'],
     ...sales.map(s => {
       const d = new Date(s.date);
       return [
         `#${String(s.id).padStart(4,'0')}`,
         d.toLocaleDateString('en-PH'),
         d.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' }),
+        s.cashier || '—',
         s.method.charAt(0).toUpperCase() + s.method.slice(1),
         s.items.map(i => `${i.name} ×${i.qty}`).join(', '),
         s.subtotal, s.tax, s.total,
@@ -1412,7 +1615,7 @@ function exportSalesExcel() {
   ];
 
   const wsOrders = XLSX.utils.aoa_to_sheet(orderRows);
-  wsOrders['!cols'] = [10,12,8,10,45,14,12,14].map(w => ({ wch: w }));
+  wsOrders['!cols'] = [10,12,8,14,10,40,14,12,14].map(w => ({ wch: w }));
   XLSX.utils.book_append_sheet(wb, wsOrders, 'All Orders');
 
   // ── Sheet 3: Item Breakdown ───────────────────────────────
