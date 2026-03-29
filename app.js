@@ -1264,6 +1264,8 @@
            </div>
          </div>`;
      }).join('');
+     // Always refresh sessions log below the accounts list
+     renderSessionsTab();
    }
    
    function buildAcctColorGrid(selected) {
@@ -1398,14 +1400,6 @@
    }
    
    // ── Main render ───────────────────────────────────────────────
-   function switchAnTab(tab, btn) {
-     document.querySelectorAll('#anTabSales,#anTabSessions').forEach(b => b.classList.remove('active'));
-     btn.classList.add('active');
-     document.getElementById('anSalesContent').style.display    = tab === 'sales'    ? '' : 'none';
-     document.getElementById('anSessionsContent').style.display = tab === 'sessions' ? '' : 'none';
-     if (tab === 'sessions') renderSessionsTab();
-   }
-   
    function renderAnalytics() {
      const sales = getFilteredSales();
      renderAnKpis(sales);
@@ -1413,9 +1407,6 @@
      renderAnPaymentChart(sales);
      renderAnTopItems(sales);
      renderAnOrderLog(sales);
-     // Also refresh sessions tab if it's the active sub-tab
-     const sessionsVisible = document.getElementById('anSessionsContent')?.style.display !== 'none';
-     if (sessionsVisible) renderSessionsTab();
    }
    
    // ── KPI cards ─────────────────────────────────────────────────

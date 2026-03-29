@@ -244,18 +244,6 @@
           </div>
         </div>
 
-        <!-- Sub-tabs: Sales / Sessions -->
-        <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;flex-shrink:0;overflow-x:auto;">
-          <button class="dbv-tab active" id="anTabSales"    onclick="switchAnTab('sales',this)"   style="font-size:12px;">📊 Sales</button>
-          <button class="dbv-tab"        id="anTabSessions" onclick="switchAnTab('sessions',this)" style="font-size:12px;">🕐 Time Log</button>
-        </div>
-
-        <!-- Sales content -->
-        <div id="anSalesContent">
-          <div style="display:none"><!-- dummy closing for the removed div below -->
-          </div>
-        </div>
-
         <!-- KPI Cards -->
         <div class="an-kpi-row" id="anKpiRow"></div>
 
@@ -285,24 +273,12 @@
           </div>
           <div id="anOrderLog"></div>
         </div>
-        </div><!-- /anSalesContent -->
-
-        <!-- Sessions content -->
-        <div id="anSessionsContent" style="display:none;">
-          <div class="an-kpi-row" id="anSessionKpis"></div>
-          <div class="an-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-              <div class="an-card-title" style="margin-bottom:0;">Staff Time Log</div>
-              <button class="ef-delete-btn" onclick="clearSessionsData()" style="font-size:11px;padding:6px 10px;">🗑 Clear</button>
-            </div>
-            <div id="anSessionLog"></div>
-          </div>
-        </div>
 
       </div>
 
       <!-- ACCOUNTS TAB -->
       <div id="mgrAccounts" class="mgr-tab">
+        <!-- Accounts list -->
         <div class="mgr-topbar">
           <div>
             <div class="mgr-section-title">Staff Accounts</div>
@@ -311,6 +287,21 @@
           <button class="mgr-add-btn" onclick="openAccountEditor(null)">+ Add Account</button>
         </div>
         <div id="accountsList"></div>
+
+        <!-- Sessions log -->
+        <div style="margin-top:28px;">
+          <div class="mgr-topbar" style="margin-bottom:12px;">
+            <div>
+              <div class="mgr-section-title" style="font-size:16px;">🕐 Staff Time Log</div>
+              <div class="mgr-section-sub">Login and logout history</div>
+            </div>
+            <button class="ef-delete-btn" onclick="clearSessionsData()" style="font-size:11px;padding:6px 10px;">🗑 Clear</button>
+          </div>
+          <div class="an-kpi-row" id="anSessionKpis"></div>
+          <div class="an-card">
+            <div id="anSessionLog"></div>
+          </div>
+        </div>
       </div>
 
     </div>
