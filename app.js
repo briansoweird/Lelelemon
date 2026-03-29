@@ -186,7 +186,8 @@
    
    /* ── Sessions — track time-in / time-out per login ── */
    let SESSIONS = JSON.parse(localStorage.getItem('lelelemon_sessions') || '[]');
-   let _currentSessionId = null;
+   // Persist session id across refreshes so logout always records timeOut correctly
+   let _currentSessionId = parseInt(localStorage.getItem('lelelemon_curSession') || '0') || null;
    
    function startSession(acct) {
      _currentSessionId = Date.now();
@@ -201,19 +202,23 @@
        duration: null,
      };
      SESSIONS.push(session);
-     try { localStorage.setItem('lelelemon_sessions', JSON.stringify(SESSIONS)); } catch(e) {}
+     try {
+       localStorage.setItem('lelelemon_sessions',   JSON.stringify(SESSIONS));
+       localStorage.setItem('lelelemon_curSession', String(_currentSessionId));
+     } catch(e) {}
    }
    
    function endSession() {
      if (!_currentSessionId) return;
      const session = SESSIONS.find(s => s.id === _currentSessionId);
-     if (session) {
+     if (session && !session.timeOut) {
        session.timeOut  = new Date().toISOString();
        const mins = Math.round((new Date(session.timeOut) - new Date(session.timeIn)) / 60000);
        session.duration = mins;
        try { localStorage.setItem('lelelemon_sessions', JSON.stringify(SESSIONS)); } catch(e) {}
      }
      _currentSessionId = null;
+     try { localStorage.removeItem('lelelemon_curSession'); } catch(e) {}
    }
    
    function doLogin() {
@@ -247,6 +252,8 @@
        if (acct) {
          currentUser = user;
          currentAcct = acct;
+         // Persist login so page refresh keeps the user in
+         try { localStorage.setItem('lelelemon_loggedIn', user); } catch(e) {}
          document.getElementById('loginOverlay').style.display    = 'none';
          document.getElementById('posApp').style.display          = 'flex';
          document.getElementById('loggedInUser').textContent      = '👤 ' + (acct.name || user);
@@ -296,6 +303,7 @@
      endSession();
      currentUser = null;
      currentAcct = null;
+     try { localStorage.removeItem('lelelemon_loggedIn'); } catch(e) {}
      document.getElementById('posApp').style.display       = 'none';
      document.getElementById('loginOverlay').style.display = 'flex';
      closeManagerPanel();
@@ -1381,6 +1389,54 @@
    setInterval(updateClock, 1000);
    updateClock();
    renderLoginTiles();
+   
+   // ── Auto-restore login after page refresh ──────────────────
+   (function restoreSession() {
+     const savedUser = localStorage.getItem('lelelemon_loggedIn');
+     if (!savedUser) return;
+   
+     ACCOUNTS = loadAccounts();
+     const acct = ACCOUNTS.find(a => a.username === savedUser);
+     if (!acct) {
+       // Account no longer exists — clear stale login
+       localStorage.removeItem('lelelemon_loggedIn');
+       return;
+     }
+   
+     // Restore session state
+     currentUser = savedUser;
+     currentAcct = acct;
+   
+     document.getElementById('loginOverlay').style.display    = 'none';
+     document.getElementById('posApp').style.display          = 'flex';
+     document.getElementById('loggedInUser').textContent      = '👤 ' + (acct.name || savedUser);
+     document.getElementById('managerModeBtn').style.display  = (acct.role === 'manager' || acct.role === 'admin') ? 'inline-block' : 'none';
+   
+     // Restore Supabase data if connected
+     if (!IS_LOCAL_MODE) {
+       const syncEl = document.getElementById('syncIndicator');
+       syncEl.style.display = 'flex';
+       setSyncState('syncing', 'Loading…');
+       db.loadAll()
+         .then(data => {
+           CATEGORIES = data.categories;
+           MENU       = data.menu;
+           const maxId = MENU.reduce((m, i) => Math.max(m, i.id), 0);
+           nextId = maxId + 1;
+           setSyncState('ok', 'Synced');
+         })
+         .catch(() => setSyncState('error', 'Offline'))
+         .finally(() => {
+           renderCategoryBar();
+           renderMenu(currentCat);
+           updateCartBadge();
+         });
+     } else {
+       renderCategoryBar();
+       renderMenu(currentCat);
+       updateCartBadge();
+     }
+   })();
    
    /* ══════════════════════════════════════════════════════════════
       ANALYTICS
