@@ -284,7 +284,7 @@
            }
          }
    
-         startSession(acct);
+         if (acct.role === 'cashier') startSession(acct);
          renderCategoryBar();
          renderMenu(currentCat);
          updateCartBadge();
@@ -300,7 +300,7 @@
    }
    
    function doLogout() {
-     endSession();
+     if (currentAcct?.role === 'cashier') endSession();
      currentUser = null;
      currentAcct = null;
      try { localStorage.removeItem('lelelemon_loggedIn'); } catch(e) {}
@@ -1406,6 +1406,11 @@
      // Restore session state
      currentUser = savedUser;
      currentAcct = acct;
+     // Re-link active session only for cashiers
+     if (acct.role !== 'cashier') {
+       localStorage.removeItem('lelelemon_curSession');
+       _currentSessionId = null;
+     }
    
      document.getElementById('loginOverlay').style.display    = 'none';
      document.getElementById('posApp').style.display          = 'flex';
