@@ -316,7 +316,7 @@ setTimeout(async () => {
     passEl.focus();
   }
 }, 700);
-
+   }
    
    function doLogout() {
      if (currentAcct?.role === 'cashier') endSession();
