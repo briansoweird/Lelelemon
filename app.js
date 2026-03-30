@@ -254,12 +254,19 @@
          currentAcct = acct;
          // Persist login so page refresh keeps the user in
          try { localStorage.setItem('lelelemon_loggedIn', user); } catch(e) {}
-         document.getElementById('loginOverlay').style.display    = 'none';
-         document.getElementById('posApp').style.display          = 'flex';
-         document.getElementById('loggedInUser').textContent      = '👤 ' + (acct.name || user);
-         document.getElementById('managerModeBtn').style.display  = (acct.role === 'manager' || acct.role === 'admin') ? 'inline-block' : 'none';
          userEl.value = '';
          passEl.value = '';
+         document.getElementById('loginOverlay').style.display = 'none';
+   
+         if (acct.role === 'cashier') {
+           // Cashiers go to the Time-In/Out screen
+           showCashierScreen(acct);
+         } else {
+           // Admin / Manager go straight to POS
+           document.getElementById('posApp').style.display         = 'flex';
+           document.getElementById('loggedInUser').textContent     = '👤 ' + (acct.name || user);
+           document.getElementById('managerModeBtn').style.display = (acct.role === 'manager' || acct.role === 'admin') ? 'inline-block' : 'none';
+         }
    
          // ── Pull live data from Supabase (skipped in local mode) ──
          const syncEl = document.getElementById('syncIndicator');
@@ -284,7 +291,7 @@
            }
          }
    
-         if (acct.role === 'cashier') startSession(acct);
+         // Session starts when cashier presses Clock In (not on login)
          renderCategoryBar();
          renderMenu(currentCat);
          updateCartBadge();
@@ -304,8 +311,10 @@
      currentUser = null;
      currentAcct = null;
      try { localStorage.removeItem('lelelemon_loggedIn'); } catch(e) {}
-     document.getElementById('posApp').style.display       = 'none';
-     document.getElementById('loginOverlay').style.display = 'flex';
+     document.getElementById('posApp').style.display          = 'none';
+     document.getElementById('cashierScreen').style.display   = 'none';
+     document.getElementById('loginOverlay').style.display    = 'flex';
+     stopCashierClock();
      closeManagerPanel();
      clearOrder();
      renderLoginTiles();
@@ -1237,6 +1246,121 @@
    
    
    /* ══════════════════════════════════════════════════════════════
+      CASHIER TIME-IN / OUT SCREEN
+      ══════════════════════════════════════════════════════════════ */
+   let _csClockTimer   = null;  // interval for the big clock
+   let _csElapsedTimer = null;  // interval for elapsed time
+   let _csTimeIn       = null;  // ISO string of when cashier clocked in
+   const CS_TIMEIN_KEY = 'lelelemon_cashierTimeIn';
+   
+   function showCashierScreen(acct) {
+     const screen = document.getElementById('cashierScreen');
+     if (!screen) return;
+   
+     // Set avatar and name in both states
+     const initials = (acct.name || acct.username).split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+     ['csAvatar','csAvatarIn'].forEach(id => {
+       const el = document.getElementById(id);
+       if (el) { el.textContent = initials; el.style.background = acct.color || '#F5E642'; }
+     });
+     ['csName','csNameIn'].forEach(id => {
+       const el = document.getElementById(id);
+       if (el) el.textContent = acct.name || acct.username;
+     });
+   
+     // Check if already clocked in (survived a refresh)
+     const savedTimeIn = localStorage.getItem(CS_TIMEIN_KEY);
+     if (savedTimeIn) {
+       _csTimeIn = savedTimeIn;
+       showClockedIn();
+     } else {
+       showClockedOut();
+     }
+   
+     screen.style.display = 'flex';
+     startCashierClock();
+   }
+   
+   function showClockedOut() {
+     document.getElementById('csClockOut').style.display = '';
+     document.getElementById('csClockIn').style.display  = 'none';
+     stopElapsedTimer();
+   }
+   
+   function showClockedIn() {
+     document.getElementById('csClockOut').style.display = 'none';
+     document.getElementById('csClockIn').style.display  = '';
+     // Show time-in value
+     if (_csTimeIn) {
+       const d = new Date(_csTimeIn);
+       document.getElementById('csTimeInVal').textContent =
+         d.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' });
+     }
+     startElapsedTimer();
+   }
+   
+   // Big clock on the clocked-out screen
+   function startCashierClock() {
+     stopCashierClock();
+     function tick() {
+       const now  = new Date();
+       const time = now.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' });
+       const date = now.toLocaleDateString('en-PH', { weekday:'long', month:'long', day:'numeric' });
+       const tEl = document.getElementById('csCurrentTime');
+       const dEl = document.getElementById('csCurrentDate');
+       if (tEl) tEl.textContent = time;
+       if (dEl) dEl.textContent = date;
+     }
+     tick();
+     _csClockTimer = setInterval(tick, 1000);
+   }
+   
+   function stopCashierClock() {
+     if (_csClockTimer) { clearInterval(_csClockTimer); _csClockTimer = null; }
+     stopElapsedTimer();
+   }
+   
+   // Elapsed time counter on the clocked-in screen
+   function startElapsedTimer() {
+     stopElapsedTimer();
+     function tick() {
+       if (!_csTimeIn) return;
+       const mins = Math.round((Date.now() - new Date(_csTimeIn)) / 60000);
+       const el   = document.getElementById('csElapsed');
+       if (el) {
+         if (mins < 60) el.textContent = `${mins}m on shift`;
+         else el.textContent = `${Math.floor(mins/60)}h ${mins%60}m on shift`;
+       }
+     }
+     tick();
+     _csElapsedTimer = setInterval(tick, 30000); // update every 30s
+   }
+   
+   function stopElapsedTimer() {
+     if (_csElapsedTimer) { clearInterval(_csElapsedTimer); _csElapsedTimer = null; }
+   }
+   
+   function cashierClockIn() {
+     _csTimeIn = new Date().toISOString();
+     try { localStorage.setItem(CS_TIMEIN_KEY, _csTimeIn); } catch(e) {}
+     // Record session start
+     if (currentAcct) startSession(currentAcct);
+     showClockedIn();
+     showToast('⏱ Clocked in!');
+   }
+   
+   function cashierClockOut() {
+     if (!confirm('Clock out now?')) return;
+     // Record session end
+     endSession();
+     try { localStorage.removeItem(CS_TIMEIN_KEY); } catch(e) {}
+     _csTimeIn = null;
+     showClockedOut();
+     showToast('✅ Clocked out. See you soon!');
+   }
+   
+   
+   /* ══════════════════════════════════════════════════════════════
       ACCOUNTS MANAGER
       ══════════════════════════════════════════════════════════════ */
    let editingAcctUser = null;
@@ -1412,10 +1536,15 @@
        _currentSessionId = null;
      }
    
-     document.getElementById('loginOverlay').style.display    = 'none';
-     document.getElementById('posApp').style.display          = 'flex';
-     document.getElementById('loggedInUser').textContent      = '👤 ' + (acct.name || savedUser);
-     document.getElementById('managerModeBtn').style.display  = (acct.role === 'manager' || acct.role === 'admin') ? 'inline-block' : 'none';
+     document.getElementById('loginOverlay').style.display = 'none';
+   
+     if (acct.role === 'cashier') {
+       showCashierScreen(acct);
+     } else {
+       document.getElementById('posApp').style.display         = 'flex';
+       document.getElementById('loggedInUser').textContent     = '👤 ' + (acct.name || savedUser);
+       document.getElementById('managerModeBtn').style.display = (acct.role === 'manager' || acct.role === 'admin') ? 'inline-block' : 'none';
+     }
    
      // Restore Supabase data if connected
      if (!IS_LOCAL_MODE) {

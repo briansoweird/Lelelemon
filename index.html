@@ -13,14 +13,15 @@
   <meta name="apple-mobile-web-app-title" content="Lelelemon">
   <meta name="theme-color" content="#F5E642">
   <title>Lelelemon POS 🍋</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <script>
-    // Register service worker
-    // Unregister any old service workers so Netlify always serves fresh files
+    // Register service worker for PWA install
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(r => r.unregister());
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
       });
     }
     // PWA install prompt
@@ -99,6 +100,45 @@
     <span>🍋</span><span>🍋</span><span>🍋</span>
     <span>🍋</span><span>🍋</span><span>🍋</span>
     <span>🍋</span><span>🍋</span><span>🍋</span>
+  </div>
+</div>
+
+<!-- ══════════ CASHIER SCREEN ══════════ -->
+<div id="cashierScreen" style="display:none;">
+  <div class="cs-bg">
+    <div class="cs-lemon cs-lemon-1">🍋</div>
+    <div class="cs-lemon cs-lemon-2">🍋</div>
+    <div class="cs-lemon cs-lemon-3">🍋</div>
+  </div>
+  <div class="cs-card">
+    <div class="cs-logo">Lelele<span>mon</span> 🍋</div>
+
+    <!-- Status: clocked out (default) -->
+    <div id="csClockOut">
+      <div class="cs-avatar" id="csAvatar"></div>
+      <div class="cs-name"   id="csName">Cashier</div>
+      <div class="cs-status cs-status-out">● Clocked Out</div>
+      <div class="cs-time-display" id="csCurrentTime">--:--</div>
+      <div class="cs-date-display" id="csCurrentDate">---</div>
+      <button class="cs-btn cs-btn-in" onclick="cashierClockIn()">
+        <span>⏱</span> Clock In
+      </button>
+    </div>
+
+    <!-- Status: clocked in -->
+    <div id="csClockIn" style="display:none;">
+      <div class="cs-avatar" id="csAvatarIn"></div>
+      <div class="cs-name"   id="csNameIn">Cashier</div>
+      <div class="cs-status cs-status-in">● On Duty</div>
+      <div class="cs-timein-label">Time In</div>
+      <div class="cs-timein-val" id="csTimeInVal">--:--</div>
+      <div class="cs-elapsed" id="csElapsed">0m on shift</div>
+      <button class="cs-btn cs-btn-out" onclick="cashierClockOut()">
+        <span>⏹</span> Clock Out
+      </button>
+    </div>
+
+    <button class="cs-switch-btn" onclick="doLogout()">← Switch Account</button>
   </div>
 </div>
 
