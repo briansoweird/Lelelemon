@@ -307,10 +307,16 @@
    }
    
    function doLogout() {
-     if (currentAcct?.role === 'cashier') endSession();
+     if (currentAcct?.role === 'cashier') {
+       endSession();
+       try { localStorage.removeItem(CS_TIMEIN_KEY); } catch(e) {}
+     }
      currentUser = null;
      currentAcct = null;
-     try { localStorage.removeItem('lelelemon_loggedIn'); } catch(e) {}
+     try {
+       localStorage.removeItem('lelelemon_loggedIn');
+       localStorage.removeItem('lelelemon_curSession');
+     } catch(e) {}
      document.getElementById('posApp').style.display          = 'none';
      document.getElementById('cashierScreen').style.display   = 'none';
      document.getElementById('loginOverlay').style.display    = 'flex';
@@ -1368,13 +1374,21 @@
      if (!confirm('Clock out now?')) return;
      // Record session end
      endSession();
-     try { localStorage.removeItem(CS_TIMEIN_KEY); } catch(e) {}
+     try {
+       localStorage.removeItem(CS_TIMEIN_KEY);
+       localStorage.removeItem('lelelemon_loggedIn');   // force re-login next shift
+       localStorage.removeItem('lelelemon_curSession');
+     } catch(e) {}
      _csTimeIn = null;
-     // Return to cashier screen so they can see they're clocked out
-     document.getElementById('posApp').style.display        = 'none';
-     document.getElementById('cashierScreen').style.display = 'flex';
-     showClockedOut();
-     startCashierClock();
+     // Hide POS, hide cashier screen, go back to login
+     document.getElementById('posApp').style.display          = 'none';
+     document.getElementById('cashierScreen').style.display   = 'none';
+     document.getElementById('loginOverlay').style.display    = 'flex';
+     stopCashierClock();
+     currentUser = null;
+     currentAcct = null;
+     clearOrder();
+     renderLoginTiles();
      showToast('✅ Clocked out. See you soon!');
    }
    
