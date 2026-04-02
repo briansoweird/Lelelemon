@@ -244,78 +244,66 @@
      btn.classList.add('loading');
      btnText.textContent = 'Signing in…';
    
-     // PATCHED SECTION ONLY — replace inside doLogin()
-
-setTimeout(async () => {
-  btn.classList.remove('loading');
-  btnText.textContent = 'Sign In';
-
-  const acct = ACCOUNTS.find(a => a.username === user && a.password === pass);
-  if (acct) {
-    currentUser = user;
-    currentAcct = acct;
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('posApp').style.display = 'flex';
-    document.getElementById('loggedInUser').textContent = '👤 ' + (acct.name || user);
-    document.getElementById('managerModeBtn').style.display =
-      (acct.role === 'manager' || acct.role === 'admin') ? 'inline-block' : 'none';
-
-    userEl.value = '';
-    passEl.value = '';
-
-    const syncEl = document.getElementById('syncIndicator');
-
-    if (IS_LOCAL_MODE) {
-      syncEl.style.display = 'none';
-    } else {
-      syncEl.style.display = 'flex';
-      setSyncState('syncing', 'Loading…');
-
-      try {
-        // ✅ Prevent freeze if Supabase is slow
-        const timeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout')), 5000)
-        );
-
-        const data = await Promise.race([db.loadAll(), timeout]);
-
-        CATEGORIES = data.categories;
-        MENU = data.menu;
-
-        const maxId = MENU.reduce((m, i) => Math.max(m, i.id), 0);
-        nextId = maxId + 1;
-
-        setSyncState('ok', 'Synced');
-      } catch (e) {
-        console.error('[Supabase] loadAll failed:', e);
-        showToast('⚠️ Could not reach Supabase — using local data');
-        setSyncState('error', 'Offline');
-      }
-    }
-
-    // ✅ Prevent UI crash (main fix)
-    try {
-      renderCategoryBar();
-
-      if (typeof renderMenu === 'function') {
-        renderMenu(currentCat);
-      } else {
-        console.error('❌ renderMenu is missing');
-      }
-
-      updateCartBadge();
-    } catch (err) {
-      console.error('❌ Render failed:', err);
-    }
-
-  } else {
-    errEl.textContent = '⚠️ Incorrect username or password.';
-    errEl.classList.add('show');
-    passEl.classList.add('error');
-    passEl.value = '';
-    passEl.focus();
-  }
-}, 700);
+     setTimeout(async () => {
+       btn.classList.remove('loading');
+       btnText.textContent = 'Sign In';
+   
+       const acct = ACCOUNTS.find(a => a.username === user && a.password === pass);
+       if (acct) {
+         currentUser = user;
+         currentAcct = acct;
+         // Persist login so page refresh keeps the user in
+         try { localStorage.setItem('lelelemon_loggedIn', user); } catch(e) {}
+         userEl.value = '';
+         passEl.value = '';
+         document.getElementById('loginOverlay').style.display = 'none';
+   
+         if (acct.role === 'cashier') {
+           // Cashiers go to the Time-In/Out screen
+           showCashierScreen(acct);
+         } else {
+           // Admin / Manager go straight to POS
+           document.getElementById('posApp').style.display         = 'flex';
+           document.getElementById('loggedInUser').textContent     = '👤 ' + (acct.name || user);
+           document.getElementById('managerModeBtn').style.display = (acct.role === 'manager' || acct.role === 'admin') ? 'inline-block' : 'none';
+         }
+   
+         // ── Pull live data from Supabase (skipped in local mode) ──
+         const syncEl = document.getElementById('syncIndicator');
+   
+         if (IS_LOCAL_MODE) {
+           // Running locally — hide the sync indicator entirely, no errors shown
+           syncEl.style.display = 'none';
+         } else {
+           syncEl.style.display = 'flex';
+           setSyncState('syncing', 'Loading…');
+           try {
+             const data = await db.loadAll();
+             CATEGORIES = data.categories;
+             MENU       = data.menu;
+             const maxId = MENU.reduce((m, i) => Math.max(m, i.id), 0);
+             nextId = maxId + 1;
+             setSyncState('ok', 'Synced');
+           } catch (e) {
+             console.error('[Supabase] loadAll failed:', e);
+             showToast('⚠️ Could not reach Supabase — using local data');
+             setSyncState('error', 'Offline');
+           }
+         }
+   
+         // Session starts when cashier presses Clock In (not on login)
+         renderCategoryBar();
+         renderMenu(currentCat);
+         updateCartBadge();
+   
+       } else {
+         errEl.textContent = '⚠️ Incorrect username or password.';
+         errEl.classList.add('show');
+         passEl.classList.add('error');
+         passEl.value = '';
+         passEl.focus();
+       }
+     }, 700);
    }
    
    function doLogout() {
@@ -1280,15 +1268,22 @@ setTimeout(async () => {
        if (el) el.textContent = acct.name || acct.username;
      });
    
-     // Check if already clocked in (survived a refresh)
+     // Check if already clocked in (survived a refresh) — go straight to POS
      const savedTimeIn = localStorage.getItem(CS_TIMEIN_KEY);
      if (savedTimeIn) {
        _csTimeIn = savedTimeIn;
-       showClockedIn();
-     } else {
-       showClockedOut();
+       // Already working — skip cashier screen and open POS directly
+       document.getElementById('posApp').style.display         = 'flex';
+       document.getElementById('loggedInUser').textContent     = '👤 ' + (acct.name || acct.username);
+       document.getElementById('managerModeBtn').style.display = 'none';
+       renderCategoryBar();
+       renderMenu(currentCat);
+       updateCartBadge();
+       return;
      }
    
+     // Not yet clocked in — show the clock-in screen
+     showClockedOut();
      screen.style.display = 'flex';
      startCashierClock();
    }
@@ -1357,8 +1352,16 @@ setTimeout(async () => {
      try { localStorage.setItem(CS_TIMEIN_KEY, _csTimeIn); } catch(e) {}
      // Record session start
      if (currentAcct) startSession(currentAcct);
-     showClockedIn();
      showToast('⏱ Clocked in!');
+     // Go straight to POS
+     stopCashierClock();
+     document.getElementById('cashierScreen').style.display  = 'none';
+     document.getElementById('posApp').style.display         = 'flex';
+     document.getElementById('loggedInUser').textContent     = '👤 ' + (currentAcct?.name || currentUser);
+     document.getElementById('managerModeBtn').style.display = 'none';
+     renderCategoryBar();
+     renderMenu(currentCat);
+     updateCartBadge();
    }
    
    function cashierClockOut() {
@@ -1367,7 +1370,11 @@ setTimeout(async () => {
      endSession();
      try { localStorage.removeItem(CS_TIMEIN_KEY); } catch(e) {}
      _csTimeIn = null;
+     // Return to cashier screen so they can see they're clocked out
+     document.getElementById('posApp').style.display        = 'none';
+     document.getElementById('cashierScreen').style.display = 'flex';
      showClockedOut();
+     startCashierClock();
      showToast('✅ Clocked out. See you soon!');
    }
    
