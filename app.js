@@ -1357,6 +1357,20 @@
      if (_csElapsedTimer) { clearInterval(_csElapsedTimer); _csElapsedTimer = null; }
    }
    
+   function goToPOS() {
+     // Direct bypass — hide cashier screen, show POS
+     const cs = document.getElementById('cashierScreen');
+     if (cs) { cs.classList.remove('active'); cs.style.display = 'none'; }
+     stopCashierClock();
+     const pos = document.getElementById('posApp');
+     if (pos) pos.style.display = 'flex';
+     document.getElementById('loggedInUser').textContent     = '👤 ' + (currentAcct?.name || currentUser || '');
+     document.getElementById('managerModeBtn').style.display = 'none';
+     renderCategoryBar();
+     renderMenu(currentCat);
+     updateCartBadge();
+   }
+   
    function cashierClockIn() {
      try {
        _csTimeIn = new Date().toISOString();
