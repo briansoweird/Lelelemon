@@ -1372,31 +1372,23 @@
    }
    
    function cashierClockIn() {
-     try {
-       _csTimeIn = new Date().toISOString();
-       localStorage.setItem(CS_TIMEIN_KEY, _csTimeIn);
-     } catch(e) {}
+     // Save time-in
+     try { _csTimeIn = new Date().toISOString(); localStorage.setItem(CS_TIMEIN_KEY, _csTimeIn); } catch(e) {}
+     try { if (currentAcct) startSession(currentAcct); } catch(e) {}
+     try { stopCashierClock(); } catch(e) {}
    
-     if (currentAcct) startSession(currentAcct);
+     // Hide every possible overlay and show POS
+     ['cashierScreen','loginOverlay'].forEach(id => {
+       const el = document.getElementById(id);
+       if (el) { el.style.display = 'none'; el.classList.remove('active'); }
+     });
    
-     // Hide cashier screen — use both methods to be safe
-     const cs = document.getElementById('cashierScreen');
-     if (cs) { cs.classList.remove('active'); cs.style.display = 'none'; }
-   
-     // Show POS
      const pos = document.getElementById('posApp');
-     if (pos) pos.style.display = 'flex';
+     if (pos) { pos.style.cssText = 'display:flex !important'; }
    
-     const loggedInEl = document.getElementById('loggedInUser');
-     if (loggedInEl) loggedInEl.textContent = '👤 ' + (currentAcct?.name || currentUser || '');
-   
-     const mgrBtn = document.getElementById('managerModeBtn');
-     if (mgrBtn) mgrBtn.style.display = 'none';
-   
-     stopCashierClock();
-     renderCategoryBar();
-     renderMenu(currentCat);
-     updateCartBadge();
+     try { document.getElementById('loggedInUser').textContent = '👤 ' + (currentAcct?.name || currentUser || ''); } catch(e) {}
+     try { document.getElementById('managerModeBtn').style.display = 'none'; } catch(e) {}
+     try { renderCategoryBar(); renderMenu(currentCat); updateCartBadge(); } catch(e) {}
      showToast('⏱ Clocked in!');
    }
    
