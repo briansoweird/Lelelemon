@@ -1289,8 +1289,12 @@
      }
    
      // Not yet clocked in — show the clock-in screen
+     // Force-hide posApp in case it's still visible
+     const pos = document.getElementById('posApp');
+     if (pos) pos.style.display = 'none';
      showClockedOut();
      screen.classList.add('active');
+     screen.style.display = 'flex';   // belt-and-suspenders
      startCashierClock();
    }
    
@@ -1354,20 +1358,32 @@
    }
    
    function cashierClockIn() {
-     _csTimeIn = new Date().toISOString();
-     try { localStorage.setItem(CS_TIMEIN_KEY, _csTimeIn); } catch(e) {}
-     // Record session start
+     try {
+       _csTimeIn = new Date().toISOString();
+       localStorage.setItem(CS_TIMEIN_KEY, _csTimeIn);
+     } catch(e) {}
+   
      if (currentAcct) startSession(currentAcct);
-     showToast('⏱ Clocked in!');
-     // Go straight to POS
+   
+     // Hide cashier screen — use both methods to be safe
+     const cs = document.getElementById('cashierScreen');
+     if (cs) { cs.classList.remove('active'); cs.style.display = 'none'; }
+   
+     // Show POS
+     const pos = document.getElementById('posApp');
+     if (pos) pos.style.display = 'flex';
+   
+     const loggedInEl = document.getElementById('loggedInUser');
+     if (loggedInEl) loggedInEl.textContent = '👤 ' + (currentAcct?.name || currentUser || '');
+   
+     const mgrBtn = document.getElementById('managerModeBtn');
+     if (mgrBtn) mgrBtn.style.display = 'none';
+   
      stopCashierClock();
-     document.getElementById('cashierScreen').classList.remove('active');
-     document.getElementById('posApp').style.display         = 'flex';
-     document.getElementById('loggedInUser').textContent     = '👤 ' + (currentAcct?.name || currentUser);
-     document.getElementById('managerModeBtn').style.display = 'none';
      renderCategoryBar();
      renderMenu(currentCat);
      updateCartBadge();
+     showToast('⏱ Clocked in!');
    }
    
    function cashierClockOut() {
