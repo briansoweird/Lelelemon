@@ -318,7 +318,7 @@
        localStorage.removeItem('lelelemon_curSession');
      } catch(e) {}
      document.getElementById('posApp').style.display          = 'none';
-     document.getElementById('cashierScreen').style.display   = 'none';
+     document.getElementById('cashierScreen').classList.remove('active');
      document.getElementById('loginOverlay').style.display    = 'flex';
      stopCashierClock();
      closeManagerPanel();
@@ -1290,7 +1290,7 @@
    
      // Not yet clocked in — show the clock-in screen
      showClockedOut();
-     screen.style.display = 'flex';
+     screen.classList.add('active');
      startCashierClock();
    }
    
@@ -1361,7 +1361,7 @@
      showToast('⏱ Clocked in!');
      // Go straight to POS
      stopCashierClock();
-     document.getElementById('cashierScreen').style.display  = 'none';
+     document.getElementById('cashierScreen').classList.remove('active');
      document.getElementById('posApp').style.display         = 'flex';
      document.getElementById('loggedInUser').textContent     = '👤 ' + (currentAcct?.name || currentUser);
      document.getElementById('managerModeBtn').style.display = 'none';
@@ -1382,7 +1382,7 @@
      _csTimeIn = null;
      // Hide POS, hide cashier screen, go back to login
      document.getElementById('posApp').style.display          = 'none';
-     document.getElementById('cashierScreen').style.display   = 'none';
+     document.getElementById('cashierScreen').classList.remove('active');
      document.getElementById('loginOverlay').style.display    = 'flex';
      stopCashierClock();
      currentUser = null;
